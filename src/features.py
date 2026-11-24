@@ -92,6 +92,7 @@ def build():
     nwin = df.groupby("race_id")["win"].transform("sum")
     df = df[nwin == 1].copy()
 
+    df["penetrometre"] = pd.to_numeric(df["penetrometre"].str.replace(",", "."), errors="coerce")
     df["partants"] = df.groupby("race_id")["race_id"].transform("size")
     df["win_rate"] = df["nbVictoires"] / df["nbCourses"].replace(0, np.nan)
     df["place_rate"] = df["nbPlaces"] / df["nbCourses"].replace(0, np.nan)

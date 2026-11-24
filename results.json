@@ -1,0 +1,86 @@
+{
+ "info": {
+  "courses_train_2023": 7585,
+  "courses_test_2024": 7994,
+  "courses_test_2024_France": 4107,
+  "partants_moyen_test": 10.245308981736303
+ },
+ "resultats": {
+  "Favori PMU (baseline)": {
+   "tout": {
+    "top1": 0.24043032274205653,
+    "top3": 0.5293970477858394
+   },
+   "France": {
+    "top1": 0.2963233503774044,
+    "top3": 0.6113951789627465
+   }
+  },
+  "Modèle SANS cotes": {
+   "tout": {
+    "top1": 0.23480110082561922,
+    "top3": 0.5476607455591693
+   },
+   "France": {
+    "top1": 0.22400779157535913,
+    "top3": 0.5244704163623083
+   }
+  },
+  "Modèle AVEC cotes": {
+   "tout": {
+    "top1": 0.27833375031273455,
+    "top3": 0.5988241180885664
+   },
+   "France": {
+    "top1": 0.292427562697833,
+    "top3": 0.6057949841733625
+   }
+  },
+  "Hasard": {
+   "tout": {
+    "top1": 0.10695521641230923,
+    "top3": 0.3239929947460595
+   },
+   "France": {
+    "top1": 0.10664718772826881,
+    "top3": 0.3109325541757974
+   }
+  }
+ },
+ "importances": {
+  "Modèle SANS cotes": {
+   "rk_gains_par_course": 19843.0,
+   "rk_mus_mean": 18059.0,
+   "z_gains_par_course": 9159.0,
+   "mus_1": 8889.0,
+   "rk_jk_rate": 7072.0,
+   "partants": 4818.0,
+   "z_handicapValeur": 4197.0,
+   "z_tr_rate": 4042.0,
+   "tr_rate": 3729.0,
+   "jk_rate": 3644.0,
+   "categorie": 3501.0,
+   "rk_tr_rate": 3385.0,
+   "z_mus_mean": 3111.0,
+   "z_win_rate": 2981.0,
+   "z_gainsAnnee": 2942.0
+  },
+  "Modèle AVEC cotes": {
+   "p_cote": 65238.0,
+   "cote": 21530.0,
+   "rk_cote": 10700.0,
+   "rk_gains_par_course": 5203.0,
+   "z_gains_par_course": 4811.0,
+   "rk_mus_mean": 4120.0,
+   "z_cote": 4069.0,
+   "p_coteRef": 3084.0,
+   "jk_rate": 2353.0,
+   "z_win_rate": 2244.0,
+   "pays": 2156.0,
+   "z_handicapValeur": 1753.0,
+   "mus_1": 1700.0,
+   "z_mus_mean": 1666.0,
+   "z_gainsAnnee": 1656.0
+  }
+ }
+}

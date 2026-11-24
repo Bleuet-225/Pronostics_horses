@@ -38,14 +38,15 @@ def topk_acc(d, score, k=1):
 
 
 def run(feats, name):
-    params = dict(objective="lambdarank", metric="ndcg", eval_at=[1], learning_rate=0.03,
-                  num_leaves=31, min_data_in_leaf=100, feature_fraction=0.8,
-                  bagging_fraction=0.8, bagging_freq=1, lambdarank_truncation_level=3,
-                  verbose=-1, seed=0)
+    # objectif binaire (gagnant oui/non) : légèrement meilleur que lambdarank
+    # sur la validation 2023 ; le cheval au score le plus élevé est le pronostic.
+    params = dict(objective="binary", metric="binary_logloss", learning_rate=0.02,
+                  num_leaves=15, min_data_in_leaf=200, feature_fraction=0.7,
+                  bagging_fraction=0.8, bagging_freq=1, verbose=-1, seed=0)
     dfit = lgb.Dataset(fit[feats], fit["win"], group=groups(fit))
     dval = lgb.Dataset(val[feats], val["win"], group=groups(val))
-    m = lgb.train(params, dfit, 3000, valid_sets=[dval],
-                  callbacks=[lgb.early_stopping(200, verbose=False)])
+    m = lgb.train(params, dfit, 4000, valid_sets=[dval],
+                  callbacks=[lgb.early_stopping(300, verbose=False)])
     best = m.best_iteration
     # ré-entraînement sur tout 2023 avec le nombre d'itérations retenu
     m = lgb.train(params, lgb.Dataset(train[feats], train["win"], group=groups(train)), best)
