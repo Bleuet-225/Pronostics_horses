@@ -4,3 +4,6 @@ __pycache__/
 data/
 modeles/
 .venv/
+
+# Préparation : fichiers de données non versionnés
+preparation/donnees/
