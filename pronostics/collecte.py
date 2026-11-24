@@ -7,6 +7,7 @@ Une ligne = un cheval partant dans une course. Les colonnes `arrivee`,
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -127,20 +128,25 @@ def collecter_jour(client: ClientPMU, d: date, seulement_courues: bool = False) 
 
 
 def collecter_periode(debut: date, fin: date, client: ClientPMU | None = None,
-                      fichier: Path = FICHIER_HISTORIQUE) -> pd.DataFrame:
+                      fichier: Path = FICHIER_HISTORIQUE, paralleles: int = 8) -> pd.DataFrame:
     """Collecte toutes les courses courues entre `debut` et `fin` (inclus)
-    et les ajoute au fichier historique (sans doublons)."""
-    client = client or ClientPMU()
+    et les ajoute au fichier historique (sans doublons).
+
+    Les jours sont téléchargés en parallèle (`paralleles` connexions).
+    """
+    client = client or ClientPMU(pause=0.05)
+    jours = [debut + timedelta(days=i) for i in range((fin - debut).days + 1)]
     lignes: list[dict] = []
-    d = debut
-    while d <= fin:
-        try:
-            jour = collecter_jour(client, d, seulement_courues=True)
-            log.info("%s : %d lignes", d.isoformat(), len(jour))
-            lignes.extend(jour)
-        except Exception as e:  # on continue la collecte malgré un jour en erreur
-            log.warning("%s : erreur %s", d.isoformat(), e)
-        d += timedelta(days=1)
+    with ThreadPoolExecutor(max_workers=max(1, paralleles)) as pool:
+        taches = {pool.submit(collecter_jour, client, d, True): d for d in jours}
+        for i, t in enumerate(as_completed(taches), 1):
+            d = taches[t]
+            try:
+                jour = t.result()
+                lignes.extend(jour)
+                log.info("[%d/%d] %s : %d lignes", i, len(jours), d.isoformat(), len(jour))
+            except Exception as e:  # on continue la collecte malgré un jour en erreur
+                log.warning("[%d/%d] %s : erreur %s", i, len(jours), d.isoformat(), e)
 
     nouveau = pd.DataFrame(lignes)
     if fichier.exists():

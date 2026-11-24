@@ -14,6 +14,7 @@ pour inspecter une réponse et signaler toute différence.
 from __future__ import annotations
 
 import json
+import threading
 import time
 from datetime import date
 from pathlib import Path
@@ -41,8 +42,19 @@ class ClientPMU:
         self.cache = cache
         self.pause = pause
         self.timeout = timeout
-        self.session = requests.Session()
-        self.session.headers["User-Agent"] = "pronostics-horses/0.1"
+        self._local = threading.local()
+
+    @property
+    def session(self) -> requests.Session:
+        """Une session HTTP par thread (requests.Session n'est pas thread-safe)."""
+        s = getattr(self._local, "session", None)
+        if s is None:
+            s = requests.Session()
+            s.headers["User-Agent"] = "pronostics-horses/0.1"
+            adaptateur = requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=4)
+            s.mount("https://", adaptateur)
+            self._local.session = s
+        return s
 
     # ------------------------------------------------------------------ bas niveau
     def _get(self, chemin: str, utiliser_cache: bool = True) -> dict | None:
@@ -63,8 +75,9 @@ class ClientPMU:
                 continue
             if rep.status_code == 204 or rep.status_code == 404:
                 return None
-            if rep.status_code >= 500 and essai < 3:
-                time.sleep(2 ** essai)
+            if (rep.status_code == 429 or rep.status_code >= 500) and essai < 3:
+                attente = rep.headers.get("Retry-After")
+                time.sleep(float(attente) if attente and attente.isdigit() else 2 ** (essai + 1))
                 continue
             if rep.status_code != 200:
                 raise ErreurAPI(f"HTTP {rep.status_code} sur {url}")

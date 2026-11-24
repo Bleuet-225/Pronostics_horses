@@ -33,7 +33,7 @@ def _date(s: str) -> date:
 
 
 def cmd_collecter(a):
-    df = collecter_periode(a.debut, a.fin)
+    df = collecter_periode(a.debut, a.fin, paralleles=a.paralleles)
     if df.empty:
         print("Aucune donnée collectée.")
         return 1
@@ -123,6 +123,8 @@ def main(argv=None) -> int:
     s = sp.add_parser("collecter", help="récupère l'historique des courses")
     s.add_argument("--debut", type=_date, required=True)
     s.add_argument("--fin", type=_date, required=True)
+    s.add_argument("--paralleles", type=int, default=8,
+                   help="nombre de jours téléchargés en parallèle (défaut : 8)")
     s.set_defaults(f=cmd_collecter)
 
     s = sp.add_parser("entrainer", help="entraîne les modèles")

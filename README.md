@@ -24,7 +24,9 @@ pip install -r requirements.txt
 python -m pronostics -v collecter --debut 01/01/2025 --fin 23/11/2026
 ```
 
-Les réponses brutes sont mises en cache dans `data/brut/` et l'historique mis à
+Les jours sont téléchargés en parallèle (`--paralleles 8` par défaut) :
+3 mois se collectent en environ 1 minute. Seules les courses en France
+sont retenues. Les réponses brutes sont mises en cache dans `data/brut/` et l'historique mis à
 plat est écrit dans `data/historique.csv.gz` (une ligne par partant). Relancer la
 commande sur une autre période complète l'historique sans doublons.
 
@@ -43,7 +45,9 @@ puis le modèle final est ré-entraîné sur tout l'historique et enregistré da
 `modeles/`. `python -m pronostics evaluer` réaffiche ces métriques.
 
 Avec `--avec-cotes`, les prédictions dépendent de la cote au moment de l'appel :
-elles ne sont fiables que près du départ.
+elles ne sont fiables que près du départ. Dans l'historique, la cote enregistrée
+est la dernière cote connue (cote finale), ce qui rend les métriques
+d'entraînement avec cotes plus favorables que l'usage réel avant la clôture.
 
 ### 3. Pronostiquer
 

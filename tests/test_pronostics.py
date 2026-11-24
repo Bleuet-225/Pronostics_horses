@@ -36,6 +36,7 @@ def test_caracteristiques_meme_discipline():
 def test_musique_vide():
     c = caracteristiques(None, "plat")
     assert c["mus_nb_perfs"] == 0 and np.isnan(c["mus_place_moy"])
+    assert caracteristiques(float("nan"), "plat")["mus_nb_perfs"] == 0
 
 
 # ------------------------------------------------------------------ collecte

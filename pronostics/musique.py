@@ -38,8 +38,8 @@ class Perf:
 
 
 def analyser(musique: str | None) -> list[Perf]:
-    if not musique:
-        return []
+    if not isinstance(musique, str) or not musique:
+        return []  # None, NaN (valeur manquante relue d'un CSV) ou chaîne vide
     perfs = []
     for m in _MOTIF.finditer(musique):
         if m.group(1) is None:

@@ -146,5 +146,5 @@ def predire(partants: pd.DataFrame, historique: pd.DataFrame | None,
     if not sorties:
         return pd.DataFrame()
     res = pd.concat(sorties, ignore_index=True)
-    res["rang_prono"] = res.groupby(CLE_COURSE)["proba_gagnant"].rank(ascending=False, method="first")
+    res["rang_prono"] = res.groupby(CLE_COURSE)["proba_gagnant"].rank(ascending=False, method="first").astype(int)
     return res.sort_values(CLE_COURSE + ["rang_prono"]).reset_index(drop=True)
