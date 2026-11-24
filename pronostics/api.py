@@ -98,6 +98,12 @@ class ClientPMU:
         return self._get(f"programme/{format_date(d)}/R{reunion}/C{course}/participants",
                          utiliser_cache)
 
+    def rapports(self, d: date, reunion: int, course: int,
+                 utiliser_cache: bool = True) -> list | None:
+        """Rapports définitifs (gains par type de pari) d'une course courue."""
+        return self._get(f"programme/{format_date(d)}/R{reunion}/C{course}/rapports-definitifs",
+                         utiliser_cache)
+
 
 def courses_plat_obstacle(programme: dict, pays: str | None = "FRA") -> list[dict]:
     """Extrait du programme les courses de plat et d'obstacles

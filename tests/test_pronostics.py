@@ -12,7 +12,7 @@ import pytest
 
 from pronostics import features as F
 from pronostics import modele
-from pronostics.collecte import _arrivees, lignes_course
+from pronostics.collecte import _arrivees, _dividendes, lignes_course
 from pronostics.musique import analyser, caracteristiques
 
 
@@ -133,3 +133,17 @@ def test_entrainement_et_prediction(tmp_path):
 def test_trop_peu_de_courses(tmp_path):
     with pytest.raises(ValueError, match="au moins"):
         modele.entrainer(_synthetique(nb_courses=20), "plat", dossier=tmp_path)
+
+
+def test_dividendes_et_rapports():
+    rapports = [
+        {"typePari": "SIMPLE_GAGNANT", "rapports": [{"combinaison": "1", "dividendePourUnEuro": 360}]},
+        {"typePari": "SIMPLE_PLACE", "rapports": [{"combinaison": "1", "dividendePourUnEuro": 170},
+                                                  {"combinaison": "8", "dividendePourUnEuro": 210}]},
+    ]
+    assert _dividendes(rapports, "SIMPLE_PLACE") == {1: 1.7, 8: 2.1}
+    course = {"_reunion": 1, "numOrdre": 1, "_type": "plat", "ordreArrivee": [[1], [8], [2]]}
+    parts = {"participants": [{"numPmu": 1}, {"numPmu": 2}, {"numPmu": 8}]}
+    l = lignes_course(date(2026, 1, 1), course, parts, rapports)
+    assert [x["rapport_place"] for x in l] == [1.7, 0.0, 2.1]
+    assert l[0]["rapport_gagnant"] == 3.6 and l[0]["place_ouvert"] == 1

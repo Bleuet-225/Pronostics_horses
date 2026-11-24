@@ -44,9 +44,28 @@ def _arrivees(course: dict) -> dict[int, int]:
     return places
 
 
-def lignes_course(d: date, course: dict, participants: dict | None) -> list[dict]:
+def _dividendes(rapports: list | dict | None, type_pari: str) -> dict[int, float]:
+    """numPmu → gain pour 1 € misé (l'API donne des centimes pour 1 €)."""
+    res: dict[int, float] = {}
+    blocs = rapports if isinstance(rapports, list) else [rapports or {}]
+    for bloc in blocs:
+        if bloc.get("typePari") != type_pari:
+            continue
+        for r in bloc.get("rapports", []):
+            try:
+                res[int(r["combinaison"])] = float(r["dividendePourUnEuro"]) / 100
+            except (KeyError, TypeError, ValueError):
+                continue
+    return res
+
+
+def lignes_course(d: date, course: dict, participants: dict | None,
+                  rapports: list | None = None) -> list[dict]:
     if not participants:
         return []
+    div_place = _dividendes(rapports, "SIMPLE_PLACE")
+    div_gagnant = _dividendes(rapports, "SIMPLE_GAGNANT")
+    place_ouvert = int(bool(div_place)) if rapports is not None else None
     arrivees = _arrivees(course)
     penetro = course.get("penetrometre") or {}
     categorie = str(course.get("categorieParticularite") or "")
@@ -110,6 +129,10 @@ def lignes_course(d: date, course: dict, participants: dict | None) -> list[dict
             "arrivee": place,
             "gagnant": None if place is None else int(place == 1),
             "top3": None if place is None else int(place <= 3),
+            # Rapports définitifs (None si non récupérés) ; 0 = non payé.
+            "place_ouvert": place_ouvert,
+            "rapport_place": None if place_ouvert is None else div_place.get(int(num), 0.0),
+            "rapport_gagnant": None if place_ouvert is None else div_gagnant.get(int(num), 0.0),
         })
     return lignes
 
@@ -123,7 +146,10 @@ def collecter_jour(client: ClientPMU, d: date, seulement_courues: bool = False) 
         if seulement_courues and not course.get("ordreArrivee"):
             continue
         parts = client.participants(d, course["_reunion"], course["numOrdre"])
-        lignes.extend(lignes_course(d, course, parts))
+        rapports = None
+        if course.get("ordreArrivee"):
+            rapports = client.rapports(d, course["_reunion"], course["numOrdre"]) or []
+        lignes.extend(lignes_course(d, course, parts, rapports))
     return lignes
 
 
