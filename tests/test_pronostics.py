@@ -121,6 +121,8 @@ def test_entrainement_et_prediction(tmp_path):
         m = paquet["metriques"]["gagnant"]
         # Sur ces données construites avec un signal, le modèle doit battre le hasard.
         assert m["taux_reussite_1er_choix"] > m["reference_hasard"]
+        assert isinstance(paquet["modeles"]["gagnant"], modele.MelangeGBNN)
+        assert not isinstance(paquet["modeles"]["top3"], modele.MelangeGBNN)
     partants = hist[hist["date"] == hist["date"].max()].drop(columns=["arrivee", "gagnant", "top3"])
     res = modele.predire(partants, hist, dossier=tmp_path)
     sommes = res.groupby(modele.CLE_COURSE)["proba_gagnant"].sum()

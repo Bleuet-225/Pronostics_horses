@@ -80,9 +80,13 @@ python -m pronostics brut --date 24/11/2026 --reunion 1 --course 3  # partants
   rapport aux autres partants de la course.
 - **Sans fuite temporelle** : les statistiques jockey/entraîneur d'une course
   n'utilisent que les courses de dates strictement antérieures.
-- **Modèle** (`pronostics/modele.py`) : gradient boosting (scikit-learn), un
-  modèle par type (plat / obstacle) et par cible (victoire / top 3), puis
-  normalisation des probabilités à l'intérieur de chaque course.
+- **Modèle** (`pronostics/modele.py`) : un modèle par type (plat / obstacle)
+  et par cible, puis normalisation des probabilités à l'intérieur de chaque
+  course.
+  - victoire : moyenne d'un gradient boosting et d'un réseau de neurones
+    (scikit-learn) ;
+  - top 3 : gradient boosting seul (le mélange n'y apportait pas de gain
+    significatif).
 
 ## Tests
 

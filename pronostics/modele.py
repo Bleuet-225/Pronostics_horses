@@ -1,8 +1,14 @@
 """Entraînement, évaluation et prédiction.
 
 Un modèle par type de course (plat / obstacle) et par cible :
-  - `gagnant` : probabilité de victoire (normalisée pour sommer à 1 par course)
-  - `top3`    : probabilité de finir dans les 3 premiers (somme = min(3, partants))
+  - `gagnant` : probabilité de victoire (normalisée pour sommer à 1 par course),
+                estimée par un mélange gradient boosting + réseau de neurones
+  - `top3`    : probabilité de finir dans les 3 premiers (somme = min(3, partants)),
+                estimée par le gradient boosting seul
+
+Sur 2 ans de données (test : 1 790 courses de plat, 545 d'obstacles), le
+mélange améliorait la probabilité de victoire de façon significative, mais
+pas le top 3 : d'où ce choix.
 """
 
 from __future__ import annotations
@@ -14,8 +20,13 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.impute import SimpleImputer
 from sklearn.metrics import log_loss, roc_auc_score
+from sklearn.neural_network import MLPClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 from . import features as F
 
@@ -33,6 +44,38 @@ def _nouveau_classifieur() -> HistGradientBoostingClassifier:
         l2_regularization=1.0, early_stopping=True, validation_fraction=0.15,
         n_iter_no_change=30, random_state=0,
     )
+
+
+def _nouveau_reseau(graine: int):
+    return make_pipeline(
+        SimpleImputer(strategy="median", add_indicator=True),
+        StandardScaler(),
+        MLPClassifier(hidden_layer_sizes=(64, 32), alpha=1e-2, early_stopping=True,
+                      max_iter=300, random_state=graine),
+    )
+
+
+class MelangeGBNN(ClassifierMixin, BaseEstimator):
+    """Moyenne des probabilités d'un gradient boosting et d'un réseau de
+    neurones (lui-même moyenné sur `nb_reseaux` initialisations)."""
+
+    def __init__(self, nb_reseaux: int = 5):
+        self.nb_reseaux = nb_reseaux
+
+    def fit(self, X, y):
+        self.gb_ = _nouveau_classifieur().fit(X, y)
+        self.reseaux_ = [_nouveau_reseau(g).fit(X, y) for g in range(self.nb_reseaux)]
+        self.classes_ = self.gb_.classes_
+        return self
+
+    def predict_proba(self, X):
+        p_gb = self.gb_.predict_proba(X)
+        p_nn = np.mean([r.predict_proba(X) for r in self.reseaux_], axis=0)
+        return (p_gb + p_nn) / 2
+
+
+def _modele_pour(cible: str):
+    return MelangeGBNN() if cible == "gagnant" else _nouveau_classifieur()
 
 
 def normaliser(df: pd.DataFrame, brut: np.ndarray, cible: str) -> np.ndarray:
@@ -107,11 +150,11 @@ def entrainer(historique: pd.DataFrame, type_course: str, avec_cotes: bool = Fal
                  "periode_test": [str(coupure), str(dates[-1])]}
     modeles = {}
     for cible in CIBLES:
-        clf = _nouveau_classifieur().fit(app[cols], app[cible])
+        clf = _modele_pour(cible).fit(app[cols], app[cible])
         proba = normaliser(test, clf.predict_proba(test[cols])[:, 1], cible)
         metriques[cible] = _metriques(test, proba, cible)
         log.info("%s / %s : %s", type_course, cible, metriques[cible])
-        modeles[cible] = _nouveau_classifieur().fit(x[cols], x[cible])
+        modeles[cible] = _modele_pour(cible).fit(x[cols], x[cible])
 
     paquet = {
         "type": type_course, "colonnes": cols, "avec_cotes": avec_cotes,
