@@ -167,3 +167,16 @@ def test_variables_pronostics():
     assert l[2]["presse_nb_cite"] == 0 and np.isnan(l[2]["pmu_prono_rang"])
     sans = lignes_course(date(2026, 8, 1), course, parts)
     assert np.isnan(sans[0]["presse_nb_cite"])
+
+
+def test_fibonacci_et_simulation():
+    from pronostics.simulation import mises, simuler
+    gagne = np.array([False, False, False, True, False, True, True])
+    # pertes 1,1,2 ; gain sur 3 → recul de 2 crans (mise 1) ; perte → 2 ; gain → 1
+    assert mises(gagne, "fibonacci").tolist() == [1, 1, 2, 3, 1, 2, 1]
+    paris = pd.DataFrame({"rapport_place": [0, 0, 0, 1.4, 0, 2.0, 1.5]})
+    r = simuler(paris, "fixe")
+    assert r["paris"] == 7 and r["resultat"] == pytest.approx(-7 + 1.4 + 2.0 + 1.5)
+    assert r["plus_longue_serie_perdante"] == 3
+    f = simuler(paris, "fibonacci")
+    assert f["total_mise"] == 11 and f["resultat"] == pytest.approx(-11 + 3 * 1.4 + 2 * 2.0 + 1.5)

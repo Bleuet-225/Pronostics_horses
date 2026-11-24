@@ -5,6 +5,7 @@ Commandes :
   entrainer  [--type plat|obstacle|tous] [--avec-cotes]
   evaluer    : affiche les métriques des modèles enregistrés
   predire    --date JJ/MM/AAAA [--reunion N] [--course N]
+  simuler    [--selection favori prono_pmu presse] [--debut ..] [--fin ..]
   brut       --date JJ/MM/AAAA [--reunion N --course N] : réponse JSON brute de l'API
 """
 
@@ -105,6 +106,24 @@ def cmd_predire(a):
     return 0
 
 
+def cmd_simuler(a):
+    from .simulation import tableau
+    hist = service.charger_historique()
+    if hist is None or "rapport_place" not in hist:
+        print("Pas de rapports dans l'historique : relancez « collecter ».")
+        return 1
+    debut = a.debut.isoformat() if a.debut else None
+    fin = a.fin.isoformat() if a.fin else None
+    t = tableau(hist, criteres=a.selection, debut=debut, fin=fin)
+    t["taux_place"] = (t["taux_place"] * 100).round(1)
+    t["rendement"] = (t["rendement"] * 100).round(1)
+    pd.set_option("display.width", 200)
+    print("Résultats en unités de mise (1 unité = mise de base). "
+          "rendement = résultat / total misé.")
+    print(t.round(1).to_string(index=False))
+    return 0
+
+
 def cmd_brut(a):
     client = ClientPMU(cache=None)
     if a.reunion and a.course:
@@ -138,6 +157,13 @@ def main(argv=None) -> int:
 
     s = sp.add_parser("evaluer", help="affiche les métriques des modèles")
     s.set_defaults(f=cmd_evaluer)
+
+    s = sp.add_parser("simuler", help="simule une stratégie en simple placé sur l'historique")
+    s.add_argument("--selection", nargs="+", default=["favori"],
+                   choices=["favori", "prono_pmu", "presse"])
+    s.add_argument("--debut", type=_date)
+    s.add_argument("--fin", type=_date)
+    s.set_defaults(f=cmd_simuler)
 
     for nom, f, aide in (("predire", cmd_predire, "pronostics pour une date"),
                          ("brut", cmd_brut, "réponse brute de l'API (diagnostic)")):
