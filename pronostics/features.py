@@ -121,7 +121,7 @@ def colonnes_features(type_course: str, avec_cotes: bool = False) -> list[str]:
         "age", "distance", "log_montant_prix", "nb_partants", "terrain_mesure",
         "handicap", "inedit", "jockey_change", "nb_courses", "taux_victoire",
         "taux_place", "gains_par_course", "log_gains_carriere", "log_gains_annee",
-        "poids", "handicap_valeur", "sexe_femelle", "sexe_hongre", "oeilleres_oui",
+        "poids", "decharge", "handicap_valeur", "sexe_femelle", "sexe_hongre", "oeilleres_oui",
         "mus_nb_perfs", "mus_nb", "mus_place_moy", "mus_victoires", "mus_top3",
         "mus_incidents", "mus_taux_top3", "mus_nb_meme", "mus_place_moy_meme",
         "mus_victoires_meme", "mus_top3_meme", "mus_incidents_meme",

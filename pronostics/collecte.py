@@ -61,9 +61,12 @@ def lignes_course(d: date, course: dict, participants: dict | None) -> list[dict
             # (non classé, tombé, arrêté…) : on le considère non placé.
             place_p = p.get("ordreArrivee")
             place = int(place_p) if isinstance(place_p, (int, float)) else 99
-        poids = _nombre(p.get("handicapPoids"))
-        if pd.isna(poids):
-            poids = _nombre(p.get("poidsConditionMonte"))
+        # Poids en hectogrammes dans l'API (580 = 58 kg). `poidsConditionMonte`
+        # (quand il est renseigné et > 0) correspond au poids après décharge du jockey.
+        poids_theorique = _nombre(p.get("handicapPoids")) / 10
+        poids_monte = _nombre(p.get("poidsConditionMonte")) / 10
+        poids = poids_monte if poids_monte > 0 else poids_theorique
+        decharge = (poids_theorique - poids_monte) if poids_monte > 0 else 0.0
         lignes.append({
             "date": d.isoformat(),
             "reunion": course.get("_reunion"),
@@ -98,6 +101,7 @@ def lignes_course(d: date, course: dict, participants: dict | None) -> list[dict
             "gains_annee": _nombre(gains.get("gainsAnneeEnCours")),
             "gains_annee_prec": _nombre(gains.get("gainsAnneePrecedente")),
             "poids": poids,
+            "decharge": decharge,
             "handicap_valeur": _nombre(p.get("handicapValeur")),
             "place_corde": _nombre(p.get("placeCorde")),
             "cote_direct": _nombre((p.get("dernierRapportDirect") or {}).get("rapport")),

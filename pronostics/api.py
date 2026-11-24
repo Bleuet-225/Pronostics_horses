@@ -86,8 +86,9 @@ class ClientPMU:
                          utiliser_cache)
 
 
-def courses_plat_obstacle(programme: dict) -> list[dict]:
-    """Extrait du programme les courses de plat et d'obstacles.
+def courses_plat_obstacle(programme: dict, pays: str | None = "FRA") -> list[dict]:
+    """Extrait du programme les courses de plat et d'obstacles
+    (par défaut uniquement en France ; `pays=None` pour tous les pays).
 
     Retourne une liste de dict « course » enrichis de `_reunion`,
     `_hippodrome` et `_type` ('plat' ou 'obstacle').
@@ -97,7 +98,9 @@ def courses_plat_obstacle(programme: dict) -> list[dict]:
     for reunion in reunions:
         num_r = reunion.get("numOfficiel")
         hippo = (reunion.get("hippodrome") or {}).get("libelleCourt", "")
-        pays = (reunion.get("pays") or {}).get("code", "")
+        code_pays = (reunion.get("pays") or {}).get("code", "")
+        if pays is not None and code_pays != pays:
+            continue
         for course in reunion.get("courses", []):
             type_course = SPECIALITES.get(course.get("specialite", ""))
             if type_course is None:
@@ -105,7 +108,7 @@ def courses_plat_obstacle(programme: dict) -> list[dict]:
             c = dict(course)
             c["_reunion"] = num_r
             c["_hippodrome"] = hippo
-            c["_pays"] = pays
+            c["_pays"] = code_pays
             c["_type"] = type_course
             resultat.append(c)
     return resultat

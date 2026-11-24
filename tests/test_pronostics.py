@@ -84,7 +84,7 @@ def _synthetique(nb_courses=400, seed=0):
                                    for _ in range(4)),
                 "nb_courses": nbc, "nb_victoires": nbc // 5, "nb_places": nbc // 2,
                 "gains_carriere": float(np.exp(10 + force[i])), "gains_annee": 1000.0,
-                "gains_annee_prec": 1000.0, "poids": 58.0, "handicap_valeur": np.nan,
+                "gains_annee_prec": 1000.0, "poids": 58.0, "decharge": 0.0, "handicap_valeur": np.nan,
                 "place_corde": float(i + 1), "cote_direct": float(np.exp(1.5 - force[i])),
                 "cote_reference": np.nan, "arrivee": int(place[i]),
                 "gagnant": int(place[i] == 1), "top3": int(place[i] <= 3),
