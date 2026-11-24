@@ -64,6 +64,26 @@ Interface web :
 streamlit run app.py
 ```
 
+### 4. Simuler une stratégie en simple placé
+
+Rejoue une stratégie sur l'historique avec les rapports définitifs du PMU,
+en mise fixe et en progression de Fibonacci :
+
+```bash
+python -m pronostics simuler --selection favori_30min                 # favori à ~30 min
+python -m pronostics simuler --selection favori_30min --regles --mise 2
+python -m pronostics simuler --selection favori --sans-handicap --cote-max 2 --ecart-min 2
+```
+
+- Sélections : `favori` (cote finale), `favori_30min` (cote de référence,
+  ~30 min avant le départ), `prono_pmu`, `presse`.
+- Filtres : `--sans-handicap`, `--sans-groupes`, `--cote-max X`,
+  `--ecart-min X` (plus basse cote des autres partants / cote du cheval joué).
+- `--regles` = règles recommandées : sans handicap et écart ≥ 2.
+  Validées sur avril → novembre 2026 (courses non utilisées pour les choisir) :
+  rendement −5,6 % contre −10,1 % sans règle. Elles réduisent la perte,
+  aucune règle testée n'a rendu le placé sur le favori rentable.
+
 ### Diagnostic
 
 ```bash

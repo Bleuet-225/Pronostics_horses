@@ -5,7 +5,9 @@ Commandes :
   entrainer  [--type plat|obstacle|tous] [--avec-cotes]
   evaluer    : affiche les métriques des modèles enregistrés
   predire    --date JJ/MM/AAAA [--reunion N] [--course N]
-  simuler    [--selection favori prono_pmu presse] [--debut ..] [--fin ..]
+  simuler    [--selection favori favori_30min prono_pmu presse] [--regles]
+             [--sans-handicap] [--sans-groupes] [--cote-max X] [--ecart-min X]
+             [--mise EUR] [--debut ..] [--fin ..]
   brut       --date JJ/MM/AAAA [--reunion N --course N] : réponse JSON brute de l'API
 """
 
@@ -107,19 +109,28 @@ def cmd_predire(a):
 
 
 def cmd_simuler(a):
-    from .simulation import tableau
+    from .simulation import REGLES_RECOMMANDEES, Filtres, tableau
     hist = service.charger_historique()
     if hist is None or "rapport_place" not in hist:
         print("Pas de rapports dans l'historique : relancez « collecter ».")
         return 1
+    if a.regles:
+        f = REGLES_RECOMMANDEES
+        filtres = Filtres(sans_handicap=True, sans_groupes=a.sans_groupes,
+                          cote_max=a.cote_max, ecart_min=a.ecart_min or f.ecart_min)
+    else:
+        filtres = Filtres(sans_handicap=a.sans_handicap, sans_groupes=a.sans_groupes,
+                          cote_max=a.cote_max, ecart_min=a.ecart_min)
     debut = a.debut.isoformat() if a.debut else None
     fin = a.fin.isoformat() if a.fin else None
-    t = tableau(hist, criteres=a.selection, debut=debut, fin=fin)
+    t = tableau(hist, criteres=a.selection, debut=debut, fin=fin, filtres=filtres)
     t["taux_place"] = (t["taux_place"] * 100).round(1)
     t["rendement"] = (t["rendement"] * 100).round(1)
-    pd.set_option("display.width", 200)
-    print("Résultats en unités de mise (1 unité = mise de base). "
-          "rendement = résultat / total misé.")
+    for c in ("total_mise", "resultat", "pire_baisse", "mise_max", "capital_necessaire"):
+        t[c] = t[c] * a.mise
+    pd.set_option("display.width", 220)
+    unite = f"{a.mise:g} € par mise de base" if a.mise != 1 else "unités de mise (1 = mise de base)"
+    print(f"Filtres : {filtres.actifs()} | montants en {unite} | rendement = résultat / total misé (%)")
     print(t.round(1).to_string(index=False))
     return 0
 
@@ -160,9 +171,17 @@ def main(argv=None) -> int:
 
     s = sp.add_parser("simuler", help="simule une stratégie en simple placé sur l'historique")
     s.add_argument("--selection", nargs="+", default=["favori"],
-                   choices=["favori", "prono_pmu", "presse"])
+                   choices=["favori", "favori_30min", "prono_pmu", "presse"])
     s.add_argument("--debut", type=_date)
     s.add_argument("--fin", type=_date)
+    s.add_argument("--regles", action="store_true",
+                   help="règles recommandées : sans handicap et écart ≥ 2 avec le 2e favori")
+    s.add_argument("--sans-handicap", action="store_true", help="exclut tous les handicaps")
+    s.add_argument("--sans-groupes", action="store_true", help="exclut les Groupes I, II et III")
+    s.add_argument("--cote-max", type=float, help="ne joue que si la cote du cheval est inférieure")
+    s.add_argument("--ecart-min", type=float,
+                   help="ne joue que si (plus basse cote des autres) / (cote du cheval) ≥ cette valeur")
+    s.add_argument("--mise", type=float, default=1.0, help="mise de base en euros (défaut : 1)")
     s.set_defaults(f=cmd_simuler)
 
     for nom, f, aide in (("predire", cmd_predire, "pronostics pour une date"),

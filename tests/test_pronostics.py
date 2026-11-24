@@ -180,3 +180,27 @@ def test_fibonacci_et_simulation():
     assert r["plus_longue_serie_perdante"] == 3
     f = simuler(paris, "fibonacci")
     assert f["total_mise"] == 11 and f["resultat"] == pytest.approx(-11 + 3 * 1.4 + 2 * 2.0 + 1.5)
+
+
+def test_filtres_simulation():
+    from pronostics.simulation import Filtres, selection
+    lignes = []
+    # course 1 : favori net (2.0 vs 5.0), conditions ; course 2 : handicap ;
+    # course 3 : favori peu net (2.0 vs 3.0) ; course 4 : une cote 30 min manquante
+    for c, cat, cotes in ((1, "COURSE_A_CONDITIONS", [2.0, 5.0, 9.0]),
+                          (2, "HANDICAP_DIVISE", [2.0, 5.0, 9.0]),
+                          (3, "COURSE_A_CONDITIONS", [2.0, 3.0, 9.0]),
+                          (4, "GROUPE_I", [2.0, 6.0, None])):
+        for i, cote in enumerate(cotes, 1):
+            lignes.append({"date": "2026-01-01", "reunion": 1, "course": c, "num": i,
+                           "heure_depart": c, "categorie": cat, "place_ouvert": 1,
+                           "rapport_place": 1.3 if i == 1 else 0.0,
+                           "cote_direct": cote if cote else 4.0, "cote_reference": cote})
+    h = pd.DataFrame(lignes)
+    assert len(selection(h, "favori")) == 4
+    assert selection(h, "favori_30min")["course"].tolist() == [1, 2, 3]
+    assert selection(h, "favori_30min", Filtres(sans_handicap=True))["course"].tolist() == [1, 3]
+    assert selection(h, "favori_30min", Filtres(ecart_min=2))["course"].tolist() == [1, 2]
+    assert selection(h, "favori_30min", Filtres(sans_handicap=True, ecart_min=2))["course"].tolist() == [1]
+    assert selection(h, "favori", Filtres(sans_groupes=True))["course"].tolist() == [1, 2, 3]
+    assert selection(h, "favori", Filtres(cote_max=2.0)).empty
