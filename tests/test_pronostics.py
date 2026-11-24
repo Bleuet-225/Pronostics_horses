@@ -12,7 +12,7 @@ import pytest
 
 from pronostics import features as F
 from pronostics import modele
-from pronostics.collecte import _arrivees, _dividendes, lignes_course
+from pronostics.collecte import _arrivees, _cote_fractionnaire, _dividendes, _variables_pronostics, lignes_course
 from pronostics.musique import analyser, caracteristiques
 
 
@@ -147,3 +147,23 @@ def test_dividendes_et_rapports():
     l = lignes_course(date(2026, 1, 1), course, parts, rapports)
     assert [x["rapport_place"] for x in l] == [1.7, 0.0, 2.1]
     assert l[0]["rapport_gagnant"] == 3.6 and l[0]["place_ouvert"] == 1
+
+
+def test_variables_pronostics():
+    assert _cote_fractionnaire("3/1") == 4.0 and _cote_fractionnaire("5/2") == 3.5
+    prono = {"selection": [{"num_partant": 2, "rang": 1, "cote_prob": "3/1"},
+                           {"num_partant": 1, "rang": 2, "cote_prob": "6/1"}]}
+    detail = {"avis": [{"pronostics": [{"numPmu": 2}, {"numPmu": 1}]},
+                       {"pronostics": [{"numPmu": 1}, {"numPmu": 2}]}],
+              "syntheses": [{"intitule": "FAVORIS", "classement": [{"numPmu": 2, "nbPoints": 10}]}]}
+    v = _variables_pronostics(prono, detail)
+    assert v[2]["pmu_prono_rang"] == 1 and v[2]["pmu_cote_prob"] == 4.0
+    assert v[2]["presse_nb_cite"] == 2 and v[2]["presse_nb_premier"] == 1
+    assert v[1]["presse_rang_moy"] == 1.5 and v[2]["presse_points"] == 10
+    assert v[-1]["presse_nb_avis"] == 2
+    course = {"_reunion": 1, "numOrdre": 1, "_type": "plat"}
+    parts = {"participants": [{"numPmu": 1}, {"numPmu": 2}, {"numPmu": 3}]}
+    l = lignes_course(date(2026, 8, 1), course, parts, pronos=v)
+    assert l[2]["presse_nb_cite"] == 0 and np.isnan(l[2]["pmu_prono_rang"])
+    sans = lignes_course(date(2026, 8, 1), course, parts)
+    assert np.isnan(sans[0]["presse_nb_cite"])

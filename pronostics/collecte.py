@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .api import ClientPMU, courses_plat_obstacle
+from .api import PRONOSTICS_DISPONIBLES_DEPUIS, ClientPMU, courses_plat_obstacle
 
 log = logging.getLogger(__name__)
 
@@ -59,10 +59,62 @@ def _dividendes(rapports: list | dict | None, type_pari: str) -> dict[int, float
     return res
 
 
+def _cote_fractionnaire(v) -> float:
+    """« 3/1 » → 4.0 (cote décimale = a/b + 1)."""
+    try:
+        a, b = str(v).split("/")
+        return float(a) / float(b) + 1
+    except (ValueError, ZeroDivisionError):
+        return float("nan")
+
+
+def _variables_pronostics(prono: dict | None, detail: dict | None) -> dict[int, dict]:
+    """numPmu → variables issues du pronostic PMU et de la synthèse presse.
+    Dictionnaire vide si les pronostics n'ont pas été récupérés."""
+    res: dict[int, dict] = {}
+    if prono is None and detail is None:
+        return res
+
+    def ligne(num):
+        return res.setdefault(int(num), {})
+
+    for sel in (prono or {}).get("selection", []):
+        if sel.get("num_partant") is None:
+            continue
+        l = ligne(sel["num_partant"])
+        l["pmu_prono_rang"] = _nombre(sel.get("rang"))
+        l["pmu_cote_prob"] = _cote_fractionnaire(sel.get("cote_prob"))
+
+    avis = [a.get("pronostics", []) for a in (detail or {}).get("avis", []) if a.get("pronostics")]
+    cites: dict[int, list[int]] = {}
+    for liste in avis:
+        for pos, x in enumerate(liste, 1):
+            if x.get("numPmu") is not None:
+                cites.setdefault(int(x["numPmu"]), []).append(pos)
+    for num, positions in cites.items():
+        l = ligne(num)
+        l["presse_nb_cite"] = float(len(positions))
+        l["presse_nb_premier"] = float(sum(1 for p in positions if p == 1))
+        l["presse_rang_moy"] = sum(positions) / len(positions)
+    for synth in (detail or {}).get("syntheses", []):
+        for x in synth.get("classement", []):
+            if x.get("numPmu") is not None:
+                ligne(x["numPmu"])["presse_points"] = _nombre(x.get("nbPoints"))
+    res[-1] = {"presse_nb_avis": float(len(avis)),
+               "presse_synthese": int(bool((detail or {}).get("syntheses")))}
+    return res
+
+
+COLONNES_PRONOS = ["pmu_prono_rang", "pmu_cote_prob", "presse_nb_avis", "presse_synthese",
+                   "presse_nb_cite", "presse_nb_premier", "presse_rang_moy", "presse_points"]
+
+
 def lignes_course(d: date, course: dict, participants: dict | None,
-                  rapports: list | None = None) -> list[dict]:
+                  rapports: list | None = None, pronos: dict[int, dict] | None = None) -> list[dict]:
     if not participants:
         return []
+    pronos = pronos or {}
+    general = pronos.get(-1)
     div_place = _dividendes(rapports, "SIMPLE_PLACE")
     div_gagnant = _dividendes(rapports, "SIMPLE_GAGNANT")
     place_ouvert = int(bool(div_place)) if rapports is not None else None
@@ -133,8 +185,21 @@ def lignes_course(d: date, course: dict, participants: dict | None,
             "place_ouvert": place_ouvert,
             "rapport_place": None if place_ouvert is None else div_place.get(int(num), 0.0),
             "rapport_gagnant": None if place_ouvert is None else div_gagnant.get(int(num), 0.0),
+            **_colonnes_prono(general, pronos.get(int(num)) if num is not None else None),
         })
     return lignes
+
+
+def _colonnes_prono(general: dict | None, cheval: dict | None) -> dict:
+    """Pronostics non récupérés → NaN partout ; récupérés mais cheval non
+    cité → 0 citation (rang/cote/points restent NaN)."""
+    v = {c: float("nan") for c in COLONNES_PRONOS}
+    if general is not None:
+        v.update(general)
+        v["presse_nb_cite"] = 0.0
+        v["presse_nb_premier"] = 0.0
+    v.update(cheval or {})
+    return v
 
 
 def collecter_jour(client: ClientPMU, d: date, seulement_courues: bool = False) -> list[dict]:
@@ -149,7 +214,12 @@ def collecter_jour(client: ClientPMU, d: date, seulement_courues: bool = False) 
         rapports = None
         if course.get("ordreArrivee"):
             rapports = client.rapports(d, course["_reunion"], course["numOrdre"]) or []
-        lignes.extend(lignes_course(d, course, parts, rapports))
+        pronos = None
+        if d >= PRONOSTICS_DISPONIBLES_DEPUIS:
+            pronos = _variables_pronostics(
+                client.pronostics(d, course["_reunion"], course["numOrdre"]),
+                client.pronostics_detailles(d, course["_reunion"], course["numOrdre"]))
+        lignes.extend(lignes_course(d, course, parts, rapports, pronos))
     return lignes
 
 

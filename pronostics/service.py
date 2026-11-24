@@ -9,7 +9,7 @@ import pandas as pd
 
 from . import modele
 from .api import ClientPMU, courses_plat_obstacle
-from .collecte import FICHIER_HISTORIQUE, lignes_course
+from .collecte import FICHIER_HISTORIQUE, _variables_pronostics, lignes_course
 
 
 def charger_historique(fichier: Path = FICHIER_HISTORIQUE) -> pd.DataFrame | None:
@@ -34,8 +34,11 @@ def partants(d: date, reunion: int | None = None, course: int | None = None,
             continue
         if course is not None and c["numOrdre"] != course:
             continue
-        p = client.participants(d, c["_reunion"], c["numOrdre"], utiliser_cache=not frais)
-        lignes.extend(lignes_course(d, c, p))
+        r, n = c["_reunion"], c["numOrdre"]
+        p = client.participants(d, r, n, utiliser_cache=not frais)
+        pronos = _variables_pronostics(client.pronostics(d, r, n, utiliser_cache=not frais),
+                                       client.pronostics_detailles(d, r, n, utiliser_cache=not frais))
+        lignes.extend(lignes_course(d, c, p, pronos=pronos))
     return pd.DataFrame(lignes)
 
 

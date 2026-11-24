@@ -54,7 +54,7 @@ def cmd_entrainer(a):
     code = 0
     for t in types:
         try:
-            paquet = modele.entrainer(hist, t, avec_cotes=a.avec_cotes)
+            paquet = modele.entrainer(hist, t, avec_cotes=a.avec_cotes, avec_pronos=a.avec_pronos)
             _afficher_metriques(paquet)
         except ValueError as e:
             print(f"[{t}] {e}")
@@ -65,7 +65,8 @@ def cmd_entrainer(a):
 def _afficher_metriques(paquet):
     m = paquet["metriques"]
     print(f"\n=== Modèle {paquet['type']} ({paquet['nb_courses']} courses, "
-          f"cotes {'utilisées' if paquet['avec_cotes'] else 'non utilisées'}) ===")
+          f"cotes {'utilisées' if paquet['avec_cotes'] else 'non utilisées'}, "
+          f"pronostics {'utilisés' if paquet.get('avec_pronos') else 'non utilisés'}) ===")
     print(f"Apprentissage : {m['periode_apprentissage'][0]} → {m['periode_apprentissage'][1]} (exclu)")
     print(f"Test          : {m['periode_test'][0]} → {m['periode_test'][1]}")
     for cible in modele.CIBLES:
@@ -131,6 +132,8 @@ def main(argv=None) -> int:
     s.add_argument("--type", choices=["plat", "obstacle", "tous"], default="tous")
     s.add_argument("--avec-cotes", action="store_true",
                    help="utilise la cote PMU comme variable (disponible seulement près du départ)")
+    s.add_argument("--avec-pronos", action="store_true",
+                   help="utilise le pronostic PMU et la synthèse presse (publiés avant les paris)")
     s.set_defaults(f=cmd_entrainer)
 
     s = sp.add_parser("evaluer", help="affiche les métriques des modèles")

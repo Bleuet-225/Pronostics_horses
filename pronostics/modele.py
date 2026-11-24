@@ -117,7 +117,8 @@ def _metriques(df: pd.DataFrame, proba: np.ndarray, cible: str) -> dict:
 
 
 def entrainer(historique: pd.DataFrame, type_course: str, avec_cotes: bool = False,
-              part_test: float = 0.2, dossier: Path = DOSSIER_MODELES) -> dict:
+              part_test: float = 0.2, dossier: Path = DOSSIER_MODELES,
+              avec_pronos: bool = False) -> dict:
     """Entraîne les modèles pour un type de course.
 
     1. découpage temporel : les `part_test` dernières dates servent de test ;
@@ -135,8 +136,8 @@ def entrainer(historique: pd.DataFrame, type_course: str, avec_cotes: bool = Fal
     if avec_cotes and h["cote_direct"].notna().mean() < 0.5:
         raise ValueError("Moins de la moitié des lignes ont une cote : impossible d'utiliser --avec-cotes.")
 
-    x = F.construire(h, historique=historique, avec_cotes=avec_cotes)
-    cols = F.colonnes_features(type_course, avec_cotes)
+    x = F.construire(h, historique=historique, avec_cotes=avec_cotes, avec_pronos=avec_pronos)
+    cols = F.colonnes_features(type_course, avec_cotes, avec_pronos)
     vides = [c for c in cols if x[c].isna().all()]
     if vides:
         log.warning("%s : colonnes sans aucune valeur, ignorées : %s", type_course, vides)
@@ -158,6 +159,7 @@ def entrainer(historique: pd.DataFrame, type_course: str, avec_cotes: bool = Fal
 
     paquet = {
         "type": type_course, "colonnes": cols, "avec_cotes": avec_cotes,
+        "avec_pronos": avec_pronos,
         "modeles": modeles, "metriques": metriques,
         "entraine_le": datetime.now().isoformat(timespec="seconds"),
         "nb_courses": int(nb_courses),
@@ -181,7 +183,8 @@ def predire(partants: pd.DataFrame, historique: pd.DataFrame | None,
     sorties = []
     for type_course, groupe in partants.groupby("type"):
         paquet = charger(type_course, dossier)
-        x = F.construire(groupe, historique=historique, avec_cotes=paquet["avec_cotes"])
+        x = F.construire(groupe, historique=historique, avec_cotes=paquet["avec_cotes"],
+                         avec_pronos=paquet.get("avec_pronos", False))
         for cible in CIBLES:
             brut = paquet["modeles"][cible].predict_proba(x[paquet["colonnes"]])[:, 1]
             x[f"proba_{cible}"] = normaliser(x, brut, cible)

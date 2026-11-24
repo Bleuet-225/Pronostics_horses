@@ -61,7 +61,7 @@ def _texte(serie: pd.Series) -> pd.Series:
 
 
 def construire(df: pd.DataFrame, historique: pd.DataFrame | None = None,
-               avec_cotes: bool = False) -> pd.DataFrame:
+               avec_cotes: bool = False, avec_pronos: bool = False) -> pd.DataFrame:
     """Retourne `df` enrichi des variables ; utilisez `colonnes_features()`
     pour obtenir la liste des colonnes à donner au modèle.
 
@@ -108,6 +108,19 @@ def construire(df: pd.DataFrame, historique: pd.DataFrame | None = None,
         x["proba_cote"] = inv / inv.groupby([x[c] for c in cle]).transform("sum")
         x["rang_cote"] = x.groupby(cle)["cote_direct"].rank(method="average")
 
+    # Pronostics publiés avant les paris (optionnel)
+    if avec_pronos:
+        for c in ("pmu_prono_rang", "pmu_cote_prob", "presse_nb_avis", "presse_synthese",
+                  "presse_nb_cite", "presse_nb_premier", "presse_rang_moy", "presse_points"):
+            if c not in x:
+                x[c] = np.nan
+        inv = 1.0 / x["pmu_cote_prob"].where(x["pmu_cote_prob"] > 1)
+        x["pmu_proba_prob"] = inv / inv.groupby([x[c] for c in cle]).transform("sum")
+        avis = x["presse_nb_avis"].where(x["presse_nb_avis"] > 0)
+        x["presse_part_cite"] = x["presse_nb_cite"] / avis
+        x["presse_part_premier"] = x["presse_nb_premier"] / avis
+        x["presse_points_rang"] = x.groupby(cle)["presse_points"].rank(ascending=False, pct=True)
+
     # Variables relatives à la course
     groupes = x.groupby(cle)
     for v in VARIABLES_RELATIVES:
@@ -116,7 +129,14 @@ def construire(df: pd.DataFrame, historique: pd.DataFrame | None = None,
     return x
 
 
-def colonnes_features(type_course: str, avec_cotes: bool = False) -> list[str]:
+COLONNES_PRONOS_PMU = ["pmu_prono_rang", "pmu_cote_prob", "pmu_proba_prob"]
+COLONNES_PRONOS_PRESSE = ["presse_nb_avis", "presse_synthese", "presse_part_cite",
+                          "presse_part_premier", "presse_rang_moy", "presse_points",
+                          "presse_points_rang"]
+
+
+def colonnes_features(type_course: str, avec_cotes: bool = False,
+                      avec_pronos: bool = False) -> list[str]:
     cols = [
         "age", "distance", "log_montant_prix", "nb_partants", "terrain_mesure",
         "handicap", "inedit", "jockey_change", "nb_courses", "taux_victoire",
@@ -137,4 +157,6 @@ def colonnes_features(type_course: str, avec_cotes: bool = False) -> list[str]:
         cols += ["disc_haie", "disc_steeple", "disc_cross"]
     if avec_cotes:
         cols += ["proba_cote", "rang_cote"]
+    if avec_pronos:
+        cols += COLONNES_PRONOS_PMU + COLONNES_PRONOS_PRESSE
     return cols

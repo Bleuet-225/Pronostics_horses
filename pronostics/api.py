@@ -24,6 +24,10 @@ import requests
 BASE_URL = "https://online.turfinfo.api.pmu.fr/rest/client/1"
 DOSSIER_CACHE = Path("data/brut")
 
+# Premier jour pour lequel l'API renvoyait des pronostics (vérifié le 24/11/2026).
+# Avant cette date, elle répond 204 (aucun contenu) : inutile de les demander.
+PRONOSTICS_DISPONIBLES_DEPUIS = date(2026, 7, 8)
+
 # Spécialités conservées : plat et obstacles (le trot est exclu).
 SPECIALITES = {"PLAT": "plat", "OBSTACLE": "obstacle"}
 
@@ -96,6 +100,18 @@ class ClientPMU:
     def participants(self, d: date, reunion: int, course: int,
                      utiliser_cache: bool = True) -> dict | None:
         return self._get(f"programme/{format_date(d)}/R{reunion}/C{course}/participants",
+                         utiliser_cache)
+
+    def pronostics(self, d: date, reunion: int, course: int,
+                   utiliser_cache: bool = True) -> dict | None:
+        """Pronostic PMU (source DATAHIPPIQUE) : rang et cote probable par partant."""
+        return self._get(f"programme/{format_date(d)}/R{reunion}/C{course}/pronostics",
+                         utiliser_cache)
+
+    def pronostics_detailles(self, d: date, reunion: int, course: int,
+                             utiliser_cache: bool = True) -> dict | None:
+        """Synthèse des pronostics de presse (avis des journaux, points)."""
+        return self._get(f"programme/{format_date(d)}/R{reunion}/C{course}/pronostics-detailles",
                          utiliser_cache)
 
     def rapports(self, d: date, reunion: int, course: int,
